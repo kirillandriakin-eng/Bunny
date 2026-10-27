@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐰 Bunny — Кликер</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(160deg,#a8e6cf 0%,#dcedc1 40%,#ffd3b6 100%);
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; user-select: none; padding-bottom: 20px;
+    overflow-x: hidden;
+  }
+  
+  .header { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; padding: 10px; }
+  h1 { margin: 0 0 10px; font-size: 26px; color: #2e5d4b; }
+  
+  .wallet-panel {
+    display: flex; justify-content: space-around; width: 100%;
+    background: #fff; border-radius: 12px; padding: 10px; box-shadow: 0 3px 10px #0001;
+    margin-bottom: 10px; font-weight: 700; color: #2e5d4b; flex-wrap: wrap; gap: 5px; align-items: center;
+  }
+  .wallet-item { display: flex; align-items: center; gap: 5px; }
+  .wallet-item svg { width: 20px; height: 20px; }
+  
+  .flying-box {
+    position: fixed; width: 40px; height: 40px; pointer-events: none; z-index: 999;
+    animation: flyToNest 0.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  }
+  @keyframes flyToNest {
+    0% { transform: scale(1) translateY(0); opacity: 1; }
+    100% { transform: scale(0.2) translateY(-200px); opacity: 0; }
+  }
+
+  .tabs { display: flex; gap: 6px; margin: 5px 0 10px; flex-wrap: wrap; justify-content: center; }
+  .tab {
+    padding: 8px 16px; border: none; border-radius: 12px;
+    background: #fff8; font-size: 15px; font-weight: 600; color: #2e5d4b;
+    cursor: pointer; transition: .2s; box-shadow: 0 2px 6px #0002;
+  }
+  .tab.active { background: #ffb347; color: #fff; transform: scale(1.05); }
+  
+  .panel { display: none; width: 92%; max-width: 420px; flex-direction: column; gap: 15px; align-items: center; }
+  .panel.active { display: flex; }
+
+  .buffs-container {
+    display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 5px; min-height: 30px;
+  }
+  .buff-tag {
+    background: #ff9800; color: #fff; padding: 4px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; display: flex; gap: 5px; align-items: center; box-shadow: 0 2px 5px #0003;
+  }
+
+  .game-column {
+    display: flex; flex-direction: column; align-items: center; width: 100%; gap: 10px;
+  }
+
+  .pets-around { position: absolute; width: 100%; height: 100%; pointer-events: none; top: 0; left: 0; z-index: 2; }
+  .pet-icon { position: absolute; font-size: 40px; filter: drop-shadow(0 4px 6px #0004); animation: floatPet 3s ease-in-out infinite; }
+  @keyframes floatPet { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+  .bunny-wrap {
+    display: flex; justify-content: center; align-items: center;
+    position: relative; min-height: 280px; width: 100%;
+  }
+  .bunny-svg {
+    width: 200px; height: 280px; cursor: pointer;
+    filter: drop-shadow(0 8px 12px #0003);
+    transform-origin: center bottom; z-index: 1;
+  }
+  .bunny-svg.jump { animation: bunnyJump 0.35s ease-out; }
+  @keyframes bunnyJump {
+    0% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(-18px) scale(1.04, 0.96); }
+    60% { transform: translateY(-6px) scale(0.98, 1.02); }
+    100% { transform: translateY(0) scale(1); }
+  }
+
+  .energy-bar { height: 22px; background: #fff9; border-radius: 12px; overflow: hidden; box-shadow: inset 0 2px 4px #0002; position: relative; width: 100%; max-width: 340px; margin-top: -5px; }
+  .energy-fill { height: 100%; background: linear-gradient(90deg,#4facfe,#00f2fe); width: 100%; transition: width .25s; }
+  .energy-text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; color: #083; }
+  .stat { text-align: center; font-size: 15px; color: #2e5d4b; font-weight: 600; }
+
+  /* ВЕНЕРИНА МУХОЛОВКА (ОРИГИНАЛ) */
+  .flytrap-container {
+    display: flex; flex-direction: column; align-items: center;
+    cursor: pointer; position: relative; margin-top: -10px;
+  }
+  .flytrap-svg { width: 100px; height: 130px; transition: transform .2s, filter .3s; filter: drop-shadow(0 5px 10px #0004); }
+  .flytrap-svg:active { transform: scale(0.95); }
+  .flytrap-svg.locked { filter: grayscale(100%) opacity(0.4); }
+  .flytrap-info { text-align: center; font-size: 13px; font-weight: bold; color: #2e5d4b; margin-top: 2px; display: flex; align-items: center; justify-content: center; gap: 4px; }
+  .flytrap-info svg { width: 16px; height: 16px; }
+
+  /* ПАНЕЛЬ ГНЕЗДА И СЕМЯН */
+  .bottom-panel {
+    display: flex; align-items: flex-start; gap: 10px; width: 100%; margin-top: 5px;
+  }
+  .buy-seed-card {
+    background: #fff; border-radius: 12px; padding: 8px; box-shadow: 0 3px 10px #0001;
+    display: flex; flex-direction: column; align-items: center; gap: 4px; width: 90px; flex-shrink: 0;
+  }
+  .buy-seed-card .box-icon { width: 32px; height: 32px; }
+  .buy-seed-card .btn-buy { background: #4caf50; color: #fff; border: none; padding: 6px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; font-size: 11px; }
+  
+  .nest-area {
+    background: #8b5a2b; border-radius: 12px; padding: 8px; display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; min-height: 80px; border: 4px solid #5a3a1a; flex: 1;
+  }
+  .nest-slot { width: 34px; height: 34px; background: rgba(0,0,0,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
+  .nest-slot.empty { color: #fff3; font-size: 14px; }
+  .nest-slot svg { width: 26px; height: 26px; }
+  .nest-slot.timer::after { content: attr(data-time); position: absolute; bottom: -11px; font-size: 9px; color: #fff; font-weight: bold; text-shadow: 0 1px 2px #000; }
+
+  /* ПРОКАЧКА, СКИНЫ, КОДЫ */
+  .card { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 3px 10px #0001; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+  .card .row { display: flex; justify-content: space-between; align-items: center; }
+  .card .name { font-weight: 700; color: #2e5d4b; font-size: 16px; }
+  .card .lvl { font-size: 13px; color: #888; }
+  .card .desc { font-size: 13px; color: #555; }
+  button.buy { border: none; border-radius: 10px; padding: 8px 14px; font-weight: 700; background: #4caf50; color: #fff; cursor: pointer; transition: .2s; font-size: 14px; }
+  button.buy:disabled { background: #bbb; cursor: not-allowed; }
+  button.equip { background: #2196f3; }
+  button.equipped { background: #ff9800; }
+
+  .skin-card { background: #fff; border-radius: 14px; padding: 10px; box-shadow: 0 3px 10px #0001; display: flex; align-items: center; gap: 12px; width: 100%; }
+  .skin-thumb { width: 70px; height: 90px; flex-shrink: 0; background: linear-gradient(160deg,#f0fff0,#e0f7fa); border-radius: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .skin-thumb svg { width: 60px; height: 80px; }
+  .skin-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .skin-info .name { font-weight: 700; color: #2e5d4b; font-size: 15px; }
+  .skin-info .price { font-size: 12px; color: #888; }
+
+  /* МОДАЛКА */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 1000; }
+  .modal-overlay.active { display: flex; }
+  .modal-box { background: #fff; padding: 20px; border-radius: 16px; text-align: center; max-width: 300px; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes popIn { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .modal-title { font-size: 20px; font-weight: bold; margin-bottom: 10px; color: #2e5d4b; }
+  .modal-icon { width: 80px; height: 80px; margin: 10px auto; }
+  .modal-desc { font-size: 16px; color: #555; margin-bottom: 15px; }
+  .modal-btn { background: #4caf50; color: #fff; border: none; padding: 10px 20px; border-radius: 10px; font-weight: bold; cursor: pointer; width: 100%; }
+
+  /* ЭФФЕКТЫ */
+  .float-coin { position: absolute; font-size: 26px; font-weight: 800; color: #ff9800; text-shadow: 0 2px 4px #0003, 0 0 8px #fff8; pointer-events: none; animation: floatUp 0.9s ease-out forwards; z-index: 10; transform: translate(-50%, -50%); }
+  @keyframes floatUp { 0% { opacity: 1; transform: translate(-50%, -50%) scale(0.6); } 30% { opacity: 1; transform: translate(-50%, -80%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -200%) scale(1); } }
+  
+  .blood-spark { position: absolute; pointer-events: none; z-index: 12; border-radius: 50%; background: radial-gradient(circle, #ff3030 0%, #c00000 40%, transparent 70%); box-shadow: 0 0 8px #ff0000; animation: bloodSpark 0.5s ease-out forwards; transform: translate(-50%, -50%); }
+  @keyframes bloodSpark { 0% { opacity: 1; width: 8px; height: 8px; } 100% { opacity: 0; width: 35px; height: 35px; } }
+  .friday-glow { filter: drop-shadow(0 0 8px #b00000) drop-shadow(0 8px 12px #0003) !important; }
+
+  .sound-toggle { position: fixed; top: 10px; right: 10px; width: 40px; height: 40px; border-radius: 50%; border: none; background: #fff; font-size: 20px; box-shadow: 0 3px 10px #0002; cursor: pointer; z-index: 100; }
+</style>
+</head>
+<body>
+
+<button class="sound-toggle" id="soundToggle" title="Вкл/выкл звук">🔊</button>
+
+<div class="header">
+  <h1>🐰 Bunny</h1>
+  <div class="wallet-panel">
+    <div class="wallet-item">💰 <span id="coins">0</span></div>
+    <div class="wallet-item">
+      <svg viewBox="0 0 100 100"><path d="M50 15 Q65 15 75 40 Q80 70 50 90 Q20 70 25 40 Q35 15 50 15 Z" fill="#8b5a2b"/><path d="M45 20 Q50 40 55 80" stroke="#5a3a1a" stroke-width="3" fill="none"/><path d="M50 15 Q55 5 65 10 Q60 20 50 15 Z" fill="#4caf50"/></svg>
+      <span id="seeds">0</span>
+    </div>
+    <div class="wallet-item" id="overflowBoxes" style="display:none;">📦 <span id="boxCount">0</span></div>
+  </div>
+  
+  <div class="tabs">
+    <button class="tab active" data-tab="clicker">Кликер</button>
+    <button class="tab" data-tab="upgrade">Прокачка</button>
+    <button class="tab" data-tab="skins">Скины</button>
+    <button class="tab" data-tab="codes">Коды</button>
+  </div>
+</div>
+
+<div class="panel active" id="panel-clicker">
+  <div class="buffs-container" id="buffsContainer"></div>
+  
+  <div class="game-column">
+    <div class="bunny-wrap" id="bunnyWrap">
+      <div id="petsAround" class="pets-around"></div>
+      <div id="bunnyContainer"></div>
+    </div>
+    
+    <div class="energy-bar">
+      <div class="energy-fill" id="energyFill"></div>
+      <div class="energy-text" id="energyText">20 / 20</div>
+    </div>
+    <div class="stat">За клик: <span id="clickValue">1</span> 🪙</div>
+    <div class="stat">В секунду: <span id="passiveValue">1</span> 🪙</div>
+    
+    <!-- ОРИГИНАЛЬНАЯ МУХОЛОВКА -->
+    <div class="flytrap-container" id="flytrapContainer" onclick="handleFlytrapClick()">
+      <svg viewBox="0 0 100 120" class="flytrap-svg locked" id="flytrapSvg">
+        <path d="M50 120 Q45 90 50 70" stroke="#4caf50" stroke-width="6" fill="none" stroke-linecap="round"/>
+        <path d="M50 90 Q35 85 30 75" stroke="#4caf50" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M50 95 Q65 90 70 80" stroke="#4caf50" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <path d="M25 70 Q20 40 50 30 Q80 40 75 70 Q50 85 25 70 Z" fill="#e74c3c" stroke="#8b0000" stroke-width="2"/>
+        <path d="M25 70 L35 55 L45 70 L55 55 L65 70 L75 55" stroke="#27ae60" stroke-width="3" fill="none" stroke-linejoin="round"/>
+        <path d="M30 50 L33 58 L36 50 Z" fill="#fff"/><path d="M45 45 L48 53 L51 45 Z" fill="#fff"/><path d="M60 50 L63 58 L66 50 Z" fill="#fff"/>
+        <path d="M40 60 L42 68 L44 60 Z" fill="#fff"/><path d="M55 60 L57 68 L59 60 Z" fill="#fff"/>
+      </svg>
+      <div class="flytrap-info" id="flytrapInfo"></div>
+    </div>
+
+    <div class="bottom-panel">
+      <div class="buy-seed-card">
+        <svg viewBox="0 0 100 100" class="box-icon"><path d="M50 15 Q65 15 75 40 Q80 70 50 90 Q20 70 25 40 Q35 15 50 15 Z" fill="#8b5a2b"/><path d="M45 20 Q50 40 55 80" stroke="#5a3a1a" stroke-width="3" fill="none"/><path d="M50 15 Q55 5 65 10 Q60 20 50 15 Z" fill="#4caf50"/></svg>
+        <div style="font-weight:bold; font-size:11px; color:#555;">1 Семечко</div>
+        <button class="btn-buy" id="buySeedBtn" onclick="buySeed()">10M 🪙</button>
+      </div>
+      <div class="nest-area" id="nestArea"></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-upgrade">
+  <div class="card">
+    <div class="row"><span class="name">👆 Клик</span><span class="lvl" id="lvl-click">Ур. 1 / 16</span></div>
+    <div class="desc">Монет за клик: <b id="desc-click">1</b></div>
+    <button class="buy" id="buy-click">Улучшить</button>
+  </div>
+  <div class="card">
+    <div class="row"><span class="name">💸 Прибыль в секунду</span><span class="lvl" id="lvl-passive">Ур. 1 / 16</span></div>
+    <div class="desc">Монет в секунду: <b id="desc-passive">1</b></div>
+    <button class="buy" id="buy-passive">Улучшить</button>
+  </div>
+  <div class="card">
+    <div class="row"><span class="name">⚡ Энергия</span><span class="lvl" id="lvl-energy">Ур. 1 / 16</span></div>
+    <div class="desc">Макс. энергия: <b id="desc-energy">20</b>, расход/восст.: <b id="desc-energy-rate">1</b></div>
+    <button class="buy" id="buy-energy">Улучшить</button>
+  </div>
+</div>
+
+<div class="panel" id="panel-skins">
+  <div class="skin-card"><div class="skin-thumb" id="thumb-0"></div><div class="skin-info"><span class="name">Обычный кролик</span><span class="price">Базовый</span><button class="buy equip equipped" id="skin-btn-0">Надет</button></div></div>
+  <div class="skin-card"><div class="skin-thumb" id="thumb-1"></div><div class="skin-info"><span class="name">Крутой кролик</span><span class="price">3 000 🪙 · Бонус: +1 000 🪙</span><button class="buy" id="skin-btn-1">Купить</button></div></div>
+  <div class="skin-card"><div class="skin-thumb" id="thumb-2"></div><div class="skin-info"><span class="name">Кролик фараон</span><span class="price">50 000 🪙 · Бонус: +8 000 🪙</span><button class="buy" id="skin-btn-2">Купить</button></div></div>
+  <div class="skin-card"><div class="skin-thumb" id="thumb-3"></div><div class="skin-info"><span class="name">Кролик пират</span><span class="price">500 000 🪙 · Бонус: +150 000 🪙</span><button class="buy" id="skin-btn-3">Купить</button></div></div>
+  <div class="skin-card"><div class="skin-thumb" id="thumb-4"></div><div class="skin-info"><span class="name">Пятница 13</span><span class="price">50M 🪙 · Бонус: +10M 🪙</span><button class="buy" id="skin-btn-4">Купить</button></div></div>
+  <div class="skin-card"><div class="skin-thumb" id="thumb-5"></div><div class="skin-info"><span class="name">Император</span><span class="price">1B 🪙 · Бонус: +50M 🪙</span><button class="buy" id="skin-btn-5">Купить</button></div></div>
+</div>
+
+<div class="panel" id="panel-codes">
+  <input class="code-input" id="codeInput" placeholder="Введи код..." style="padding:12px; border-radius:12px; border:2px solid #ffb347; font-size:16px; width:100%;">
+  <button class="code-btn" id="codeBtn" style="padding:12px; border-radius:12px; border:none; background:#ffb347; color:#fff; font-size:16px; font-weight:700; cursor:pointer; margin-top:5px; width:100%;">Активировать</button>
+  <div class="msg" id="codeMsg" style="font-size:14px; font-weight:600; text-align:center; min-height:20px;"></div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-title" id="modalTitle">Открытие</div>
+    <div class="modal-icon" id="modalIcon"></div>
+    <div class="modal-desc" id="modalDesc">Вы получили...</div>
+    <button class="modal-btn" onclick="closeModal()">Забрать</button>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   1. ГРАФИКА
+   ============================================================ */
+const SVG_SEED = `<svg viewBox="0 0 100 100" style="display:inline-block; vertical-align:middle;"><path d="M50 15 Q65 15 75 40 Q80 70 50 90 Q20 70 25 40 Q35 15 50 15 Z" fill="#8b5a2b"/><path d="M45 20 Q50 40 55 80" stroke="#5a3a1a" stroke-width="3" fill="none"/><path d="M50 15 Q55 5 65 10 Q60 20 50 15 Z" fill="#4caf50"/></svg>`;
+
+const SVG_BOX_MONEY = `<svg viewBox="0 0 100 100"><rect x="15" y="25" width="70" height="50" rx="5" fill="#2e7d32" stroke="#1b5e20" stroke-width="3"/><rect x="20" y="30" width="60" height="40" fill="#43a047"/><rect x="10" y="20" width="80" height="15" rx="3" fill="#1b5e20"/><circle cx="50" cy="50" r="14" fill="#f4c430" stroke="#a07d1c" stroke-width="2"/><text x="50" y="57" text-anchor="middle" font-size="16" font-weight="bold" fill="#a07d1c">$</text></svg>`;
+const SVG_BOX_BUFF = `<svg viewBox="0 0 100 100"><rect x="15" y="25" width="70" height="50" rx="5" fill="#1976d2" stroke="#0d47a1" stroke-width="3"/><rect x="20" y="30" width="60" height="40" fill="#2196f3"/><rect x="10" y="20" width="80" height="15" rx="3" fill="#0d47a1"/><path d="M50 35 L35 55 L48 55 L40 75 L65 50 L52 50 Z" fill="#ffeb3b" stroke="#fbc02d" stroke-width="1"/></svg>`;
+const SVG_BOX_PET = `<svg viewBox="0 0 100 100"><rect x="15" y="25" width="70" height="50" rx="5" fill="#8e24aa" stroke="#4a148c" stroke-width="3"/><rect x="20" y="30" width="60" height="40" fill="#ab47bc"/><rect x="10" y="20" width="80" height="15" rx="3" fill="#4a148c"/><path d="M40 60 Q40 45 50 45 Q60 45 60 60 Q60 70 50 70 Q40 70 40 60 Z" fill="#f5f5f5"/><circle cx="35" cy="50" r="5" fill="#f5f5f5"/><circle cx="45" cy="42" r="5" fill="#f5f5f5"/><circle cx="55" cy="42" r="5" fill="#f5f5f5"/><circle cx="65" cy="50" r="5" fill="#f5f5f5"/><path d="M50 65 Q53 68 50 71" stroke="#e91e63" stroke-width="2" fill="none"/></svg>`;
+
+const BOX_SVGS = { money: SVG_BOX_MONEY, buff: SVG_BOX_BUFF, pet: SVG_BOX_PET };
+
+function pawAtEnd(cx, cy, armAngle, body, bodyShade, nail) {
+  return `
+    <g transform="translate(${cx} ${cy}) rotate(${armAngle})">
+      <ellipse cx="0" cy="0" rx="13" ry="11" fill="${body}" stroke="${bodyShade}" stroke-width="1.2"/>
+      <ellipse cx="-7"  cy="8"  rx="4.5" ry="6"   fill="${body}" stroke="${bodyShade}" stroke-width="1"/>
+      <ellipse cx="0"   cy="10" rx="4.5" ry="6.5" fill="${body}" stroke="${bodyShade}" stroke-width="1"/>
+      <ellipse cx="7"   cy="8"  rx="4.5" ry="6"   fill="${body}" stroke="${bodyShade}" stroke-width="1"/>
+      <ellipse cx="-7"  cy="13.5" rx="1.6" ry="2.2" fill="${nail}"/>
+      <ellipse cx="0"   cy="15.5" rx="1.6" ry="2.2" fill="${nail}"/>
+      <ellipse cx="7"   cy="13.5" rx="1.6" ry="2.2" fill="${nail}"/>
+      <ellipse cx="0" cy="-2" rx="8" ry="4.5" fill="${bodyShade}" opacity="0.4"/>
+    </g>
+  `;
+}
+function detailedFoot(cx, cy, body, bodyShade, nail) {
+  return `
+    <g>
+      <ellipse cx="${cx}" cy="${cy}" rx="24" ry="13" fill="${body}" stroke="${bodyShade}" stroke-width="1.2"/>
+      <ellipse cx="${cx - 12}" cy="${cy - 6}" rx="5" ry="7" fill="${body}" stroke="${bodyShade}" stroke-width="1"/>
+      <ellipse cx="${cx}"      cy="${cy - 8}" rx="5.5" ry="7.5" fill="${body}" stroke="${bodyShade}" stroke-width="1"/>
+      <ellipse cx="${cx + 12}" cy="${cy - 6}" rx="5" ry="7" fill="${body}" stroke="${bodyShade}" stroke-width="1"/>
+      <ellipse cx="${cx - 12}" cy="${cy - 12}" rx="1.8" ry="2.2" fill="${nail}"/>
+      <ellipse cx="${cx}"      cy="${cy - 14}" rx="1.8" ry="2.2" fill="${nail}"/>
+      <ellipse cx="${cx + 12}" cy="${cy - 12}" rx="1.8" ry="2.2" fill="${nail}"/>
+      <ellipse cx="${cx}" cy="${cy + 4}" rx="14" ry="5" fill="${bodyShade}" opacity="0.45"/>
+    </g>
+  `;
+}
+function svgBunny(opts) {
+  const { body='#f5f5f5', bodyShade='#e0e0e0', innerEar='#ffb6c1', eye='#2b2b2b', nose='#ff8fa3', nail='#d4a574', bodyLayer='', extraLayer='', rightArmLayer='', leftArmLayer='' } = opts || {};
+  const defaultLeftArm = `<path d="M62 185 Q50 215 52 245" stroke="${body}" stroke-width="26" stroke-linecap="round" fill="none"/><path d="M62 185 Q50 215 52 245" stroke="${bodyShade}" stroke-width="26" stroke-linecap="round" fill="none" opacity="0.15"/>${pawAtEnd(52, 250, -8, body, bodyShade, nail)}`;
+  const defaultRightArm = `<path d="M158 185 Q170 215 168 245" stroke="${body}" stroke-width="26" stroke-linecap="round" fill="none"/><path d="M158 185 Q170 215 168 245" stroke="${bodyShade}" stroke-width="26" stroke-linecap="round" fill="none" opacity="0.15"/>${pawAtEnd(168, 250, 8, body, bodyShade, nail)}`;
+  return `
+  <svg viewBox="0 0 220 300" xmlns="http://www.w3.org/2000/svg" class="bunny-svg">
+    <ellipse cx="110" cy="290" rx="70" ry="10" fill="#00000022"/>
+    ${detailedFoot(80, 275, body, bodyShade, nail)}
+    ${detailedFoot(140, 275, body, bodyShade, nail)}
+    <ellipse cx="110" cy="215" rx="55" ry="65" fill="${body}"/>
+    <ellipse cx="110" cy="225" rx="40" ry="50" fill="${bodyShade}" opacity="0.35"/>
+    <ellipse cx="75"  cy="70" rx="15" ry="55" fill="${body}" transform="rotate(-10 75 70)"/>
+    <ellipse cx="145" cy="70" rx="15" ry="55" fill="${body}" transform="rotate(10 145 70)"/>
+    <ellipse cx="75"  cy="70" rx="7"  ry="42" fill="${innerEar}" transform="rotate(-10 75 70)"/>
+    <ellipse cx="145" cy="70" rx="7"  ry="42" fill="${innerEar}" transform="rotate(10 145 70)"/>
+    <ellipse cx="110" cy="140" rx="58" ry="52" fill="${body}"/>
+    <ellipse cx="110" cy="155" rx="38" ry="28" fill="${bodyShade}" opacity="0.35"/>
+    <ellipse cx="88"  cy="132" rx="7" ry="9" fill="${eye}"/>
+    <ellipse cx="132" cy="132" rx="7" ry="9" fill="${eye}"/>
+    <ellipse cx="90"  cy="129" rx="2.5" ry="3" fill="#fff"/>
+    <ellipse cx="134" cy="129" rx="2.5" ry="3" fill="#fff"/>
+    <ellipse cx="110" cy="150" rx="6" ry="4.5" fill="${nose}"/>
+    <path d="M104 158 Q110 164 116 158" stroke="${eye}" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <line x1="70" y1="150" x2="95" y2="152" stroke="${eye}" stroke-width="1.2" opacity="0.6"/>
+    <line x1="70" y1="158" x2="95" y2="157" stroke="${eye}" stroke-width="1.2" opacity="0.6"/>
+    <line x1="150" y1="150" x2="125" y2="152" stroke="${eye}" stroke-width="1.2" opacity="0.6"/>
+    <line x1="150" y1="158" x2="125" y2="157" stroke="${eye}" stroke-width="1.2" opacity="0.6"/>
+    <ellipse cx="80"  cy="155" rx="8" ry="5" fill="#ffb6c1" opacity="0.5"/>
+    <ellipse cx="140" cy="155" rx="8" ry="5" fill="#ffb6c1" opacity="0.5"/>
+    ${bodyLayer}
+    ${leftArmLayer || defaultLeftArm}
+    ${rightArmLayer || defaultRightArm}
+    ${extraLayer}
+  </svg>`;
+}
+function svgCoolBunny() {
+  const bodyLayer = `<defs><linearGradient id="coolJacket" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3d566e"/><stop offset="45%" stop-color="#2c3e50"/><stop offset="100%" stop-color="#1a252f"/></linearGradient><linearGradient id="coolJacketSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0%"   stop-color="#0f151b" stop-opacity="0.75"/><stop offset="18%"  stop-color="#1a252f" stop-opacity="0.35"/><stop offset="35%"  stop-color="#34495e" stop-opacity="0"/><stop offset="65%"  stop-color="#34495e" stop-opacity="0"/><stop offset="82%"  stop-color="#1a252f" stop-opacity="0.35"/><stop offset="100%" stop-color="#0f151b" stop-opacity="0.75"/></linearGradient><linearGradient id="coolLapel" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#1a252f"/><stop offset="100%" stop-color="#2c3e50"/></linearGradient></defs>
+    <path d="M64 188 Q110 170 156 188 L168 248 Q172 272 162 276 Q110 284 58 276 Q48 272 52 248 Z" fill="url(#coolJacket)" stroke="#0f151b" stroke-width="1.6"/>
+    <path d="M64 188 Q110 170 156 188 L168 248 Q172 272 162 276 Q110 284 58 276 Q48 272 52 248 Z" fill="url(#coolJacketSide)"/>
+    <path d="M66 200 Q60 235 62 268" stroke="#0f151b" stroke-width="1" stroke-dasharray="3 4" fill="none" opacity="0.8"/>
+    <path d="M154 200 Q160 235 158 268" stroke="#0f151b" stroke-width="1" stroke-dasharray="3 4" fill="none" opacity="0.8"/>
+    <path d="M80 184 Q78 172 90 168 L110 190 L96 200 Z" fill="url(#coolLapel)" stroke="#0f151b" stroke-width="1.2"/>
+    <path d="M140 184 Q142 172 130 168 L110 190 L124 200 Z" fill="url(#coolLapel)" stroke="#0f151b" stroke-width="1.2"/>
+    <path d="M96 176 L110 188 L124 176 L118 170 L110 180 L102 170 Z" fill="#c0392b" opacity="0.9"/>
+    <path d="M84 178 Q110 162 136 178 L138 184 Q110 172 82 184 Z" fill="#1a252f" stroke="#0f151b" stroke-width="1"/>
+    <path d="M96 200 L110 240 L96 244 L88 210 Z" fill="#34495e" stroke="#0f151b" stroke-width="1" opacity="0.9"/>
+    <path d="M124 200 L110 240 L124 244 L132 210 Z" fill="#34495e" stroke="#0f151b" stroke-width="1" opacity="0.9"/>
+    <line x1="110" y1="192" x2="110" y2="270" stroke="#0f151b" stroke-width="4"/>
+    <line x1="110" y1="192" x2="110" y2="270" stroke="#bdc3c7" stroke-width="2.4"/>
+    <line x1="110" y1="192" x2="110" y2="270" stroke="#ecf0f1" stroke-width="1" stroke-dasharray="1.5 3"/>
+    <rect x="105" y="218" width="10" height="8" rx="2" fill="#ecf0f1" stroke="#7f8c8d" stroke-width="1"/>
+    <circle cx="110" cy="226" r="2" fill="#7f8c8d"/>
+    <path d="M72 214 L90 216 L90 232 L72 230 Z" fill="#34495e" stroke="#0f151b" stroke-width="1"/>
+    <path d="M71 214 L91 216 L90 221 L72 219 Z" fill="#1a252f" stroke="#0f151b" stroke-width="1"/>
+    <circle cx="81" cy="220" r="1.8" fill="#ecf0f1" stroke="#7f8c8d" stroke-width="0.5"/>
+    <path d="M130 216 L148 214 L150 230 L130 232 Z" fill="#34495e" stroke="#0f151b" stroke-width="1"/>
+    <path d="M131 214 L149 212 L148 217 L130 219 Z" fill="#1a252f" stroke="#0f151b" stroke-width="1"/>
+    <circle cx="139" cy="218" r="1.8" fill="#ecf0f1" stroke="#7f8c8d" stroke-width="0.5"/>
+    <circle cx="84" cy="202" r="6.5" fill="#e74c3c" stroke="#a93226" stroke-width="1.2"/>
+    <circle cx="84" cy="202" r="3" fill="#f4c430"/>
+    <path d="M80 202 L88 202 M84 198 L84 206" stroke="#a93226" stroke-width="0.8"/>
+    <circle cx="98" cy="212" r="1.5" fill="#7f8c8d"/>
+    <circle cx="122" cy="212" r="1.5" fill="#7f8c8d"/>
+    <path d="M58 268 Q110 278 162 268 L164 274 Q110 284 56 274 Z" fill="#1a252f" stroke="#0f151b" stroke-width="1"/>
+    <path d="M58 268 Q110 278 162 268" stroke="#34495e" stroke-width="1" fill="none" opacity="0.7"/>
+    <path d="M70 240 Q76 250 72 262" stroke="#0f151b" stroke-width="1.2" fill="none" opacity="0.5"/>
+    <path d="M150 240 Q144 250 148 262" stroke="#0f151b" stroke-width="1.2" fill="none" opacity="0.5"/>`;
+  const extraLayer = `<ellipse cx="132" cy="140" rx="14" ry="10" fill="#7e57c2" opacity="0.65"/><ellipse cx="132" cy="140" rx="8"  ry="5.5" fill="#5e35b1" opacity="0.85"/><path d="M125 135 Q132 132 139 135" stroke="#4527a0" stroke-width="1.5" fill="none"/><path d="M126 145 Q132 148 138 145" stroke="#4527a0" stroke-width="1.2" fill="none"/><line x1="120" y1="120" x2="142" y2="124" stroke="#2b2b2b" stroke-width="3" stroke-linecap="round"/><path d="M100 160 Q110 167 122 159" stroke="#2b2b2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+  const leftArmLayer = `<path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="#2c3e50" stroke="#0f151b" stroke-width="1.3"/><path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="url(#coolJacketSide)"/><path d="M60 205 Q58 222 58 240" stroke="#0f151b" stroke-width="1" fill="none" opacity="0.6"/><path d="M68 205 Q68 222 68 240" stroke="#34495e" stroke-width="1" fill="none" opacity="0.5"/><path d="M54 244 L73 244 L72 252 L55 252 Z" fill="#1a252f" stroke="#0f151b" stroke-width="1"/><line x1="56" y1="248" x2="71" y2="248" stroke="#34495e" stroke-width="1" stroke-dasharray="2 2"/>${pawAtEnd(63, 258, -6, '#ececec', '#d5d5d5', '#d4a574')}`;
+  const rightArmLayer = `<path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="#2c3e50" stroke="#0f151b" stroke-width="1.3"/><path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="url(#coolJacketSide)"/><path d="M160 205 Q162 222 162 240" stroke="#0f151b" stroke-width="1" fill="none" opacity="0.6"/><path d="M152 205 Q152 222 152 240" stroke="#34495e" stroke-width="1" fill="none" opacity="0.5"/><path d="M147 244 L166 244 L165 252 L148 252 Z" fill="#1a252f" stroke="#0f151b" stroke-width="1"/><line x1="149" y1="248" x2="164" y2="248" stroke="#34495e" stroke-width="1" stroke-dasharray="2 2"/>${pawAtEnd(157, 258, 6, '#ececec', '#d5d5d5', '#d4a574')}`;
+  return svgBunny({ body:'#ececec', bodyShade:'#d5d5d5', bodyLayer, extraLayer, leftArmLayer, rightArmLayer });
+}
+function svgPharaohBunny() {
+  const bodyLayer = `<defs><linearGradient id="phGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffe082"/><stop offset="50%" stop-color="#f4c430"/><stop offset="100%" stop-color="#c9a227"/></linearGradient><linearGradient id="phGoldSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#7a5f0f" stop-opacity="0.5"/><stop offset="25%" stop-color="#c9a227" stop-opacity="0"/><stop offset="75%" stop-color="#c9a227" stop-opacity="0"/><stop offset="100%" stop-color="#7a5f0f" stop-opacity="0.5"/></linearGradient></defs>
+    <path d="M66 190 Q110 172 154 190 L164 248 Q168 272 158 276 Q110 284 62 276 Q52 272 56 248 Z" fill="#e8dcc0" stroke="#b8a878" stroke-width="1.4"/>
+    <path d="M66 190 Q110 172 154 190 L164 248 Q168 272 158 276 Q110 284 62 276 Q52 272 56 248 Z" fill="url(#phGoldSide)"/>
+    <path d="M64 188 Q50 210 54 226 L74 226 Q72 208 78 192 Z" fill="#e8dcc0" stroke="#b8a878" stroke-width="1.2"/>
+    <path d="M156 188 Q170 210 166 226 L146 226 Q148 208 142 192 Z" fill="#e8dcc0" stroke="#b8a878" stroke-width="1.2"/>
+    <path d="M82 228 Q110 238 138 228 L148 276 Q110 286 72 276 Z" fill="url(#phGold)" stroke="#a07d1c" stroke-width="1.4"/>
+    <path d="M92 235 L90 280" stroke="#a07d1c" stroke-width="1" opacity="0.6" fill="none"/><path d="M110 238 L110 284" stroke="#a07d1c" stroke-width="1" opacity="0.6" fill="none"/><path d="M128 235 L130 280" stroke="#a07d1c" stroke-width="1" opacity="0.6" fill="none"/>
+    <path d="M82 248 Q110 256 138 248" stroke="#1e3a8a" stroke-width="2.5" fill="none"/><path d="M79 260 Q110 268 141 260" stroke="#1e3a8a" stroke-width="2.5" fill="none"/>
+    <rect x="74" y="224" width="72" height="10" rx="3" fill="#1e3a8a" stroke="#0f2050" stroke-width="1"/><rect x="106" y="222" width="8" height="14" rx="2" fill="#f4c430" stroke="#a07d1c" stroke-width="0.8"/>
+    <path d="M66 188 Q110 206 154 188 L160 216 Q110 234 60 216 Z" fill="url(#phGold)" stroke="#a07d1c" stroke-width="1.5"/>
+    <path d="M66 188 Q110 206 154 188 L160 216 Q110 234 60 216 Z" fill="url(#phGoldSide)"/>
+    <path d="M70 196 Q110 212 150 196" stroke="#1e3a8a" stroke-width="2.5" fill="none"/><path d="M68 204 Q110 220 152 204" stroke="#c0392b" stroke-width="2" fill="none"/><path d="M66 212 Q110 228 154 212" stroke="#1e3a8a" stroke-width="2.5" fill="none"/>
+    <circle cx="110" cy="218" r="5.5" fill="#e74c3c" stroke="#a93226" stroke-width="1"/><circle cx="110" cy="218" r="2" fill="#ff8a80"/><circle cx="92"  cy="216" r="3.5" fill="#3498db" stroke="#1f6f8b" stroke-width="0.8"/><circle cx="128" cy="216" r="3.5" fill="#3498db" stroke="#1f6f8b" stroke-width="0.8"/><circle cx="110" cy="227" r="3" fill="#27ae60" stroke="#1e8449" stroke-width="0.8"/>`;
+  const extraLayer = `<defs><linearGradient id="nemesGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#ffe082"/><stop offset="100%" stop-color="#c9a227"/></linearGradient></defs>
+    <path d="M52 140 Q48 80 110 75 Q172 80 168 140 L160 175 Q155 185 145 175 L150 130 Q110 115 70 130 L75 175 Q65 185 60 175 Z" fill="url(#nemesGold)" stroke="#a07d1c" stroke-width="2"/>
+    <path d="M60 105 Q110 95 160 105" stroke="#1e3a8a" stroke-width="4" fill="none"/><path d="M58 120 Q110 110 162 120" stroke="#1e3a8a" stroke-width="4" fill="none"/><path d="M56 135 Q110 125 164 135" stroke="#1e3a8a" stroke-width="4" fill="none"/>
+    <circle cx="110" cy="88" r="8" fill="url(#nemesGold)" stroke="#a07d1c" stroke-width="2"/><path d="M107 85 Q110 80 113 85" stroke="#1e3a8a" stroke-width="2" fill="none"/>
+    <rect x="105" y="170" width="10" height="28" rx="4" fill="url(#nemesGold)" stroke="#a07d1c" stroke-width="1"/><line x1="107" y1="175" x2="113" y2="175" stroke="#1e3a8a" stroke-width="1.5"/><line x1="107" y1="185" x2="113" y2="185" stroke="#1e3a8a" stroke-width="1.5"/>
+    <path d="M80 130 L72 138 L80 138" stroke="#1e3a8a" stroke-width="2.5" fill="none"/><path d="M140 130 L148 138 L140 138" stroke="#1e3a8a" stroke-width="2.5" fill="none"/>`;
+  const leftArmLayer = `<path d="M64 188 Q50 220 54 248" stroke="#f5e6c8" stroke-width="24" stroke-linecap="round" fill="none"/><path d="M64 188 Q50 220 54 248" stroke="#e0cfa8" stroke-width="24" stroke-linecap="round" fill="none" opacity="0.2"/>${pawAtEnd(54, 252, -6, '#f5e6c8', '#e0cfa8', '#d4a574')}`;
+  const rightArmLayer = `<path d="M156 188 Q170 220 166 248" stroke="#f5e6c8" stroke-width="24" stroke-linecap="round" fill="none"/><path d="M156 188 Q170 220 166 248" stroke="#e0cfa8" stroke-width="24" stroke-linecap="round" fill="none" opacity="0.2"/>${pawAtEnd(166, 252, 6, '#f5e6c8', '#e0cfa8', '#d4a574')}`;
+  return svgBunny({ body:'#f5e6c8', bodyShade:'#e0cfa8', innerEar:'#e0a96d', eye:'#1a1a1a', nail:'#d4a574', bodyLayer, extraLayer, leftArmLayer, rightArmLayer });
+}
+function svgPirateBunny() {
+  const bodyLayer = `<defs><linearGradient id="pirateCoat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#b03030"/><stop offset="50%" stop-color="#8b0000"/><stop offset="100%" stop-color="#5a0000"/></linearGradient><linearGradient id="pirateCoatSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#2a0000" stop-opacity="0.75"/><stop offset="25%" stop-color="#5a0000" stop-opacity="0.3"/><stop offset="50%" stop-color="#8b0000" stop-opacity="0"/><stop offset="75%" stop-color="#5a0000" stop-opacity="0.3"/><stop offset="100%" stop-color="#2a0000" stop-opacity="0.75"/></linearGradient></defs>
+    <path d="M64 188 Q110 170 156 188 L168 248 Q172 272 162 276 Q110 284 58 276 Q48 272 52 248 Z" fill="url(#pirateCoat)" stroke="#3d0000" stroke-width="1.6"/>
+    <path d="M64 188 Q110 170 156 188 L168 248 Q172 272 162 276 Q110 284 58 276 Q48 272 52 248 Z" fill="url(#pirateCoatSide)"/>
+    <path d="M66 200 Q60 235 62 268" stroke="#3d0000" stroke-width="1" stroke-dasharray="3 4" fill="none"/><path d="M154 200 Q160 235 158 268" stroke="#3d0000" stroke-width="1" stroke-dasharray="3 4" fill="none"/>
+    <path d="M84 178 Q110 162 136 178 L138 184 Q110 172 82 184 Z" fill="#5a0000" stroke="#3d0000" stroke-width="1"/>
+    <path d="M80 184 Q78 172 90 168 L110 190 L96 200 Z" fill="#5a0000" stroke="#3d0000" stroke-width="1.2"/><path d="M140 184 Q142 172 130 168 L110 190 L124 200 Z" fill="#5a0000" stroke="#3d0000" stroke-width="1.2"/>
+    <path d="M96 200 L110 190 L124 200" stroke="#f4c430" stroke-width="1.5" fill="none"/>
+    <path d="M96 200 L110 240 L96 244 L88 210 Z" fill="#a52a2a" stroke="#3d0000" stroke-width="1" opacity="0.9"/><path d="M124 200 L110 240 L124 244 L132 210 Z" fill="#a52a2a" stroke="#3d0000" stroke-width="1" opacity="0.9"/>
+    <circle cx="94"  cy="210" r="4" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><circle cx="93"  cy="209" r="1.4" fill="#ffe082"/><circle cx="94"  cy="228" r="4" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><circle cx="93"  cy="227" r="1.4" fill="#ffe082"/>
+    <circle cx="126" cy="210" r="4" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><circle cx="125" cy="209" r="1.4" fill="#ffe082"/><circle cx="126" cy="228" r="4" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><circle cx="125" cy="227" r="1.4" fill="#ffe082"/>
+    <path d="M96 200 L96 244" stroke="#f4c430" stroke-width="1.2" fill="none"/><path d="M124 200 L124 244" stroke="#f4c430" stroke-width="1.2" fill="none"/>
+    <rect x="56" y="252" width="108" height="13" rx="2" fill="#3d1a00" stroke="#1a0a00" stroke-width="1.2"/><line x1="58" y1="258" x2="162" y2="258" stroke="#5a2800" stroke-width="1"/>
+    <rect x="102" y="249" width="16" height="20" rx="2" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><rect x="106" y="253" width="8" height="12" rx="1" fill="#3d1a00"/><circle cx="110" cy="259" r="2.5" fill="#f5f5f5"/>
+    <path d="M70 240 Q76 250 72 262" stroke="#3d0000" stroke-width="1.2" fill="none" opacity="0.5"/><path d="M150 240 Q144 250 148 262" stroke="#3d0000" stroke-width="1.2" fill="none" opacity="0.5"/>`;
+  const extraLayer = `<path d="M42 112 Q110 58 178 112 L170 132 Q110 96 50 132 Z" fill="#1a1a1a" stroke="#000" stroke-width="1"/><path d="M42 112 Q110 58 178 112 L174 120 Q110 70 46 120 Z" fill="#2c2c2c"/>
+    <path d="M50 130 Q70 122 90 128" stroke="#0a0a0a" stroke-width="2" fill="none"/><path d="M170 130 Q150 122 130 128" stroke="#0a0a0a" stroke-width="2" fill="none"/>
+    <circle cx="110" cy="92" r="9" fill="#f5f5f5" stroke="#888" stroke-width="0.5"/><circle cx="106" cy="90" r="2.2" fill="#1a1a1a"/><circle cx="114" cy="90" r="2.2" fill="#1a1a1a"/><path d="M106 96 L114 96" stroke="#1a1a1a" stroke-width="1.5"/><path d="M107 97 L107 100 M110 97 L110 100 M113 97 L113 100" stroke="#1a1a1a" stroke-width="1"/>
+    <line x1="100" y1="102" x2="120" y2="108" stroke="#f5f5f5" stroke-width="2.5" stroke-linecap="round"/><line x1="120" y1="102" x2="100" y2="108" stroke="#f5f5f5" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M120 125 L155 140 L155 150 L120 140 Z" fill="#1a1a1a" stroke="#000" stroke-width="0.8"/><line x1="120" y1="128" x2="158" y2="145" stroke="#1a1a1a" stroke-width="2"/><line x1="118" y1="135" x2="112" y2="155" stroke="#1a1a1a" stroke-width="2"/>
+    <line x1="75" y1="145" x2="82" y2="155" stroke="#c0392b" stroke-width="2" stroke-linecap="round"/><line x1="76" y1="147" x2="79" y2="151" stroke="#c0392b" stroke-width="1" stroke-linecap="round"/>
+    <path d="M100 162 Q110 168 122 161" stroke="#2b2b2b" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+  const leftArmLayer = `<path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="#8b0000" stroke="#3d0000" stroke-width="1.3"/><path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="url(#pirateCoatSide)"/><path d="M60 205 Q58 222 58 240" stroke="#3d0000" stroke-width="1" fill="none" opacity="0.6"/><path d="M54 244 L73 244 L72 252 L55 252 Z" fill="#5a0000" stroke="#3d0000" stroke-width="1"/><line x1="56" y1="248" x2="71" y2="248" stroke="#f4c430" stroke-width="1"/>${pawAtEnd(63, 258, -6, '#e8e8e8', '#cfcfcf', '#d4a574')}`;
+  const rightArmLayer = `<g class="sword-arm"><path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="#8b0000" stroke="#3d0000" stroke-width="1.3"/><path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="url(#pirateCoatSide)"/><path d="M160 205 Q162 222 162 240" stroke="#3d0000" stroke-width="1" fill="none" opacity="0.6"/><path d="M147 244 L166 244 L165 252 L148 252 Z" fill="#5a0000" stroke="#3d0000" stroke-width="1"/><line x1="149" y1="248" x2="164" y2="248" stroke="#f4c430" stroke-width="1"/>
+    <g><rect x="154" y="234" width="9" height="22" rx="3" fill="#5d3a1a" stroke="#3d1a00" stroke-width="1"/><circle cx="158.5" cy="258" r="4" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><rect x="146" y="230" width="25" height="5" rx="2" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><circle cx="148" cy="232.5" r="2" fill="#a07d1c"/><circle cx="169" cy="232.5" r="2" fill="#a07d1c"/><path d="M154 230 L155 165 L158.5 155 L162 165 L163 230 Z" fill="#d5dbdb" stroke="#7f8c8d" stroke-width="1"/><line x1="157" y1="165" x2="157" y2="225" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/><path d="M155 165 L158.5 153 L162 165 Z" fill="#ecf0f1" stroke="#7f8c8d" stroke-width="1"/></g>
+    ${pawAtEnd(158, 250, 6, '#e8e8e8', '#cfcfcf', '#d4a574')}<path d="M150 244 Q158 240 167 244" stroke="#cfcfcf" stroke-width="1.5" fill="#e8e8e8"/></g>`;
+  return svgBunny({ body:'#e8e8e8', bodyShade:'#cfcfcf', innerEar:'#ffb6c1', nail:'#d4a574', bodyLayer, extraLayer, leftArmLayer, rightArmLayer });
+}
+function svgFridayBunny() {
+  const bodyLayer = `<defs><linearGradient id="fridayShirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a3a3a"/><stop offset="50%" stop-color="#2a2a2a"/><stop offset="100%" stop-color="#111"/></linearGradient><linearGradient id="fridayShirtSide" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#000" stop-opacity="0.7"/><stop offset="30%" stop-color="#222" stop-opacity="0"/><stop offset="70%" stop-color="#222" stop-opacity="0"/><stop offset="100%" stop-color="#000" stop-opacity="0.7"/></linearGradient></defs>
+    <path d="M64 188 Q110 170 156 188 L168 250 Q172 274 162 278 Q110 286 58 278 Q48 274 52 250 Z" fill="url(#fridayShirt)" stroke="#000" stroke-width="1.6"/>
+    <path d="M64 188 Q110 170 156 188 L168 250 Q172 274 162 278 Q110 286 58 278 Q48 274 52 250 Z" fill="url(#fridayShirtSide)"/>
+    <path d="M72 230 L78 236 M80 240 L84 244" stroke="#5a5a5a" stroke-width="1.2" fill="none" opacity="0.6"/><path d="M144 245 L150 250" stroke="#5a5a5a" stroke-width="1.2" fill="none" opacity="0.6"/><path d="M90 215 L96 220" stroke="#5a5a5a" stroke-width="1" fill="none" opacity="0.5"/>
+    <line x1="110" y1="190" x2="110" y2="272" stroke="#000" stroke-width="3"/><line x1="110" y1="190" x2="110" y2="272" stroke="#5a5a5a" stroke-width="1.2" stroke-dasharray="2 3"/>
+    <path d="M84 184 Q110 170 136 184 L138 190 Q110 178 82 190 Z" fill="#111" stroke="#000" stroke-width="1"/>
+    <rect x="56" y="268" width="108" height="10" rx="2" fill="#1a1a1a" stroke="#000" stroke-width="1"/><rect x="102" y="266" width="16" height="14" rx="2" fill="#555" stroke="#333" stroke-width="1"/>`;
+  const extraLayer = `<path d="M64 105 Q62 175 78 195 Q110 205 142 195 Q158 175 156 105 Q110 95 64 105 Z" fill="#f5f5f5" stroke="#2a2a2a" stroke-width="2"/>
+    <path d="M66 118 Q110 108 154 118" stroke="#c0392b" stroke-width="4" fill="none"/><path d="M65 165 Q110 155 155 165" stroke="#c0392b" stroke-width="3" fill="none"/>
+    <path d="M78 128 Q88 122 100 128 L100 142 Q88 148 78 142 Z" fill="#1a1a1a"/><path d="M142 128 Q132 122 120 128 L120 142 Q132 148 142 142 Z" fill="#1a1a1a"/>
+    <circle cx="95"  cy="160" r="1.6" fill="#2a2a2a"/><circle cx="105" cy="160" r="1.6" fill="#2a2a2a"/><circle cx="115" cy="160" r="1.6" fill="#2a2a2a"/><circle cx="125" cy="160" r="1.6" fill="#2a2a2a"/>
+    <circle cx="100" cy="170" r="1.6" fill="#2a2a2a"/><circle cx="110" cy="170" r="1.6" fill="#2a2a2a"/><circle cx="120" cy="170" r="1.6" fill="#2a2a2a"/>
+    <path d="M92 185 Q110 190 128 185" stroke="#2a2a2a" stroke-width="2" fill="none"/>
+    <circle cx="70"  cy="130" r="1.8" fill="#888"/><circle cx="70"  cy="150" r="1.8" fill="#888"/><circle cx="70"  cy="170" r="1.8" fill="#888"/>
+    <circle cx="150" cy="130" r="1.8" fill="#888"/><circle cx="150" cy="150" r="1.8" fill="#888"/><circle cx="150" cy="170" r="1.8" fill="#888"/>
+    <line x1="64" y1="135" x2="50" y2="130" stroke="#2a2a2a" stroke-width="3" stroke-linecap="round"/><line x1="156" y1="135" x2="170" y2="130" stroke="#2a2a2a" stroke-width="3" stroke-linecap="round"/>`;
+  const leftArmLayer = `<path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="#2a2a2a" stroke="#000" stroke-width="1.3"/><path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="url(#fridayShirtSide)"/><path d="M54 244 L73 244 L72 252 L55 252 Z" fill="#111" stroke="#000" stroke-width="1"/>${pawAtEnd(63, 258, -6, '#e8e8e8', '#cfcfcf', '#d4a574')}`;
+  const rightArmLayer = `<g class="knife-arm"><path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="#2a2a2a" stroke="#000" stroke-width="1.3"/><path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="url(#fridayShirtSide)"/><path d="M147 244 L166 244 L165 252 L148 252 Z" fill="#111" stroke="#000" stroke-width="1"/>
+    <g><rect x="154" y="232" width="10" height="24" rx="3" fill="#2a1a0a" stroke="#0a0500" stroke-width="1"/><line x1="156" y1="238" x2="162" y2="238" stroke="#5a3a1a" stroke-width="1"/><line x1="156" y1="245" x2="162" y2="245" stroke="#5a3a1a" stroke-width="1"/><line x1="156" y1="252" x2="162" y2="252" stroke="#5a3a1a" stroke-width="1"/><circle cx="159" cy="240" r="1.2" fill="#aaa"/><circle cx="159" cy="250" r="1.2" fill="#aaa"/><rect x="150" y="226" width="18" height="6" rx="1" fill="#666" stroke="#333" stroke-width="1"/><path d="M152 226 L152 165 Q156 155 160 165 L160 226 Z" fill="#d5dbdb" stroke="#5a5a5a" stroke-width="1"/><line x1="156" y1="170" x2="156" y2="220" stroke="#fff" stroke-width="2" opacity="0.8"/><path d="M152 226 L152 165 Q154 160 156 165 L156 226 Z" fill="#8a9a9a" opacity="0.5"/><path d="M152 165 Q156 148 160 165 Z" fill="#ecf0f1" stroke="#5a5a5a" stroke-width="1"/></g>
+    ${pawAtEnd(158, 250, 6, '#e8e8e8', '#cfcfcf', '#d4a574')}<path d="M150 244 Q158 240 167 244" stroke="#cfcfcf" stroke-width="1.5" fill="#e8e8e8"/></g>`;
+  return svgBunny({ body:'#dcdcdc', bodyShade:'#bfbfbf', innerEar:'#a8a8a8', eye:'#000', nose:'#3a3a3a', nail:'#b0b0b0', bodyLayer, extraLayer, leftArmLayer, rightArmLayer });
+}
+function svgEmperorBunny() {
+  const bodyLayer = `<defs><linearGradient id="napoleonCoat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1e3a8a"/><stop offset="50%" stop-color="#172554"/><stop offset="100%" stop-color="#0f172a"/></linearGradient></defs>
+    <path d="M64 188 Q110 170 156 188 L168 248 Q172 272 162 276 Q110 284 58 276 Q48 272 52 248 Z" fill="url(#napoleonCoat)" stroke="#0b1120" stroke-width="1.6"/>
+    <path d="M80 184 Q110 168 140 184 L144 194 Q110 178 76 194 Z" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/>
+    <path d="M90 195 L130 195 L135 265 L85 265 Z" fill="#fdfbf7" stroke="#d1c9b8" stroke-width="1"/>
+    <circle cx="110" cy="210" r="2.5" fill="#f4c430"/><circle cx="110" cy="225" r="2.5" fill="#f4c430"/><circle cx="110" cy="240" r="2.5" fill="#f4c430"/><circle cx="110" cy="255" r="2.5" fill="#f4c430"/>
+    <path d="M85 190 L110 210 L95 220 L75 200 Z" fill="#b91c1c" stroke="#7f1d1d" stroke-width="1"/><path d="M135 190 L110 210 L125 220 L145 200 Z" fill="#b91c1c" stroke="#7f1d1d" stroke-width="1"/>
+    <path d="M50 190 Q60 180 75 190 Q65 200 50 195 Z" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><path d="M170 190 Q160 180 145 190 Q155 200 170 195 Z" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/>
+    <line x1="52" y1="193" x2="52" y2="205" stroke="#f4c430" stroke-width="1.5"/><line x1="58" y1="194" x2="58" y2="206" stroke="#f4c430" stroke-width="1.5"/><line x1="64" y1="194" x2="64" y2="205" stroke="#f4c430" stroke-width="1.5"/>
+    <line x1="168" y1="193" x2="168" y2="205" stroke="#f4c430" stroke-width="1.5"/><line x1="162" y1="194" x2="162" y2="206" stroke="#f4c430" stroke-width="1.5"/><line x1="156" y1="194" x2="156" y2="205" stroke="#f4c430" stroke-width="1.5"/>
+    <path d="M95 203 L98 208 L103 208 L99 212 L100 217 L95 214 L90 217 L91 212 L87 208 L92 208 Z" fill="#fff" stroke="#f4c430" stroke-width="1"/><circle cx="95" cy="210" r="1.5" fill="#1e3a8a"/>
+    <rect x="58" y="245" width="104" height="12" rx="2" fill="#fdfbf7" stroke="#d1c9b8" stroke-width="1"/>`;
+  const extraLayer = `<path d="M45 122 Q110 40 175 122 Q110 88 45 122 Z" fill="#111" stroke="#000" stroke-width="2"/><path d="M45 122 Q110 60 175 122 Q110 105 45 122 Z" fill="#222"/>
+    <circle cx="110" cy="90" r="7" fill="#fff" stroke="#888" stroke-width="1"/><path d="M105 87 Q110 84 115 87 L115 93 Q110 96 105 93 Z" fill="#1e3a8a"/><path d="M105 87 Q110 84 115 87 L115 89 Q110 86 105 89 Z" fill="#dc2626"/><circle cx="110" cy="90" r="1.5" fill="#fff"/>
+    <line x1="70" y1="155" x2="95" y2="152" stroke="#111" stroke-width="2" opacity="0.8"/><line x1="70" y1="162" x2="95" y2="158" stroke="#111" stroke-width="2" opacity="0.8"/><line x1="150" y1="155" x2="125" y2="152" stroke="#111" stroke-width="2" opacity="0.8"/><line x1="150" y1="162" x2="125" y2="158" stroke="#111" stroke-width="2" opacity="0.8"/>
+    <path d="M75 120 Q88 115 100 122" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M120 122 Q132 115 145 120" stroke="#111" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+  const leftArmLayer = `<path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="#172554" stroke="#0b1120" stroke-width="1.3"/><path d="M64 188 Q52 220 56 248 L72 248 Q66 220 74 192 Z" fill="#000" opacity="0.3"/><path d="M54 244 L73 244 L72 252 L55 252 Z" fill="#fdfbf7" stroke="#d1c9b8" stroke-width="1"/>${pawAtEnd(63, 258, -6, '#ececec', '#d5d5d5', '#d4a574')}`;
+  const rightArmLayer = `<g class="sword-arm"><path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="#172554" stroke="#0b1120" stroke-width="1.3"/><path d="M156 188 Q168 220 164 248 L148 248 Q154 220 146 192 Z" fill="#000" opacity="0.3"/><path d="M147 244 L166 244 L165 252 L148 252 Z" fill="#fdfbf7" stroke="#d1c9b8" stroke-width="1"/>
+    <g><rect x="154" y="234" width="9" height="22" rx="3" fill="#5d3a1a" stroke="#3d1a00" stroke-width="1"/><circle cx="158.5" cy="258" r="4" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><rect x="146" y="230" width="25" height="5" rx="2" fill="#f4c430" stroke="#a07d1c" stroke-width="1"/><circle cx="148" cy="232.5" r="2" fill="#a07d1c"/><circle cx="169" cy="232.5" r="2" fill="#a07d1c"/><path d="M154 230 L155 165 L158.5 155 L162 165 L163 230 Z" fill="#d5dbdb" stroke="#7f8c8d" stroke-width="1"/><line x1="157" y1="165" x2="157" y2="225" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/><path d="M155 165 L158.5 153 L162 165 Z" fill="#ecf0f1" stroke="#7f8c8d" stroke-width="1"/></g>
+    ${pawAtEnd(158, 250, 6, '#ececec', '#d5d5d5', '#d4a574')}<path d="M150 244 Q158 240 167 244" stroke="#d5d5d5" stroke-width="1.5" fill="#ececec"/></g>`;
+  return svgBunny({ body:'#f4f4f4', bodyShade:'#d9d9d9', innerEar:'#ffb6c1', eye:'#111', nail:'#d4a574', bodyLayer, extraLayer, leftArmLayer, rightArmLayer });
+}
+function getSkinSVG(skinId) {
+  switch(skinId) {
+    case 1: return svgCoolBunny();
+    case 2: return svgPharaohBunny();
+    case 3: return svgPirateBunny();
+    case 4: return svgFridayBunny();
+    case 5: return svgEmperorBunny();
+    default: return svgBunny();
+  }
+}
+
+/* ============================================================
+   2. ЗВУКИ
+   ============================================================ */
+let audioCtx = null; let soundEnabled = true;
+function getAudioCtx() { if (!audioCtx) { const Ctx = window.AudioContext || window.webkitAudioContext; if (Ctx) audioCtx = new Ctx(); } if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{}); return audioCtx; }
+function playPopSound(pitch) { if (!soundEnabled) return; const ctx = getAudioCtx(); if (!ctx) return; const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(600*(pitch||1), ctx.currentTime); o.frequency.exponentialRampToValueAtTime(180*(pitch||1), ctx.currentTime+0.12); g.gain.setValueAtTime(0.25, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+0.13); o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+0.14); }
+function playBuySound() { if (!soundEnabled) return; const ctx = getAudioCtx(); if (!ctx) return; [523.25, 659.25, 783.99].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'triangle'; o.frequency.value = f; g.gain.setValueAtTime(0.001, ctx.currentTime+i*0.06); g.gain.exponentialRampToValueAtTime(0.15, ctx.currentTime+i*0.06+0.02); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime+i*0.06+0.25); o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime+i*0.06); o.stop(ctx.currentTime+i*0.06+0.3); }); }
+function playSwordSound() { if (!soundEnabled) return; const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime, dur = 0.22; const bufferSize = Math.floor(ctx.sampleRate * dur); const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate); const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5; const src = ctx.createBufferSource(); src.buffer = buffer; const filter = ctx.createBiquadFilter(); filter.type = 'bandpass'; filter.frequency.setValueAtTime(1200, now); filter.frequency.exponentialRampToValueAtTime(3000, now + dur); filter.Q.value = 1.5; const gain = ctx.createGain(); gain.gain.setValueAtTime(0.001, now); gain.gain.exponentialRampToValueAtTime(0.18, now + 0.05); gain.gain.exponentialRampToValueAtTime(0.001, now + dur); src.connect(filter); filter.connect(gain); gain.connect(ctx.destination); src.start(now); src.stop(now + dur); }
+function playKnifeSound() { if (!soundEnabled) return; const ctx = getAudioCtx(); if (!ctx) return; const now = ctx.currentTime, dur = 0.28; const bufferSize = Math.floor(ctx.sampleRate * dur); const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate); const data = buffer.getChannelData(0); for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.5; const src = ctx.createBufferSource(); src.buffer = buffer; const filter = ctx.createBiquadFilter(); filter.type = 'highpass'; filter.frequency.setValueAtTime(2000, now); filter.frequency.exponentialRampToValueAtTime(5000, now + dur); filter.Q.value = 0.8; const gain = ctx.createGain(); gain.gain.setValueAtTime(0.001, now); gain.gain.exponentialRampToValueAtTime(0.22, now + 0.06); gain.gain.exponentialRampToValueAtTime(0.001, now + dur); src.connect(filter); filter.connect(gain); gain.connect(ctx.destination); src.start(now); src.stop(now + dur); }
+
+/* ============================================================
+   3. ЛОГИКА
+   ============================================================ */
+const SAVE_KEY = 'bunnySave_v13_mega';
+const MAX_LEVEL = 16;
+
+const CLICK_VALUES   = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768];
+const PASSIVE_VALUES = [1, 2, 4, 8, 12, 20, 30, 80, 160, 320, 600, 1000, 2200, 4500, 9000, 14000];
+const ENERGY_MAX     = [20, 40, 60, 120, 220, 400, 800, 1300, 2500, 8000, 22000, 34000, 60000, 120000, 250000, 400000];
+const ENERGY_RATE    = [1, 2, 3, 6, 10, 18, 35, 50, 100, 200, 450, 800, 1500, 4000, 10000, 16000];
+
+const COST_CLICK   = {1:100, 2:300, 3:1000, 4:4000, 5:15000, 6:50000, 7:120000, 8:300000, 9:700000, 10:1800000, 11:4500000, 12:12000000, 13:35000000, 14:100000000, 15:250000000};
+const COST_PASSIVE = {1:150, 2:500, 3:2000, 4:8000, 5:30000, 6:90000, 7:220000, 8:500000, 9:1200000, 10:3000000, 11:7500000, 12:20000000, 13:55000000, 14:150000000, 15:400000000};
+const COST_ENERGY  = {1:200, 2:800, 3:3000, 4:12000, 5:45000, 6:120000, 7:280000, 8:650000, 9:1500000, 10:3800000, 11:9500000, 12:25000000, 13:70000000, 14:200000000, 15:500000000};
+
+const SKINS = [
+  { id: 0, name: 'Обычный кролик', price: 0, bonus: 0 },
+  { id: 1, name: 'Крутой кролик',  price: 3000, bonus: 1000 },
+  { id: 2, name: 'Кролик фараон',  price: 50000, bonus: 8000 },
+  { id: 3, name: 'Кролик пират',   price: 500000, bonus: 150000 },
+  { id: 4, name: 'Пятница 13',     price: 50000000, bonus: 10000000 },
+  { id: 5, name: 'Император',      price: 1000000000, bonus: 50000000 },
+];
+
+const CODES = {
+  '#Bunny': 300, 'Мой кролик': 500, '100300500': 250,
+  'Люблю кролика': 500, 'Китёнок': 1000,
+  'Ледниковый период+Жарко=Зайчик': 100000000000
+};
+
+const BOX_TYPES = {
+  money: { id: 'money', name: 'Денежная', chance: 72, time: 60 },
+  buff: { id: 'buff', name: 'Бустов', chance: 22, time: 180 },
+  pet: { id: 'pet', name: 'Питомца', chance: 6, time: 600 }
+};
+
+const BUFF_LOOT = [
+  { id: 'b1', name: '×2 Клик', stat: 'click', mult: 2, time: 300, chance: 23, icon: '👆' },
+  { id: 'b2', name: '×2 Энергия', stat: 'energy', mult: 2, time: 300, chance: 27, icon: '⚡' },
+  { id: 'b3', name: '×3 Клик', stat: 'click', mult: 3, time: 300, chance: 10, icon: '👆' },
+  { id: 'b4', name: '×3 Энергия', stat: 'energy', mult: 3, time: 180, chance: 14, icon: '⚡' },
+  { id: 'b5', name: '×5 Пассив', stat: 'passive', mult: 5, time: 120, chance: 3, icon: '💸' },
+  { id: 'b6', name: '×3 Клик', stat: 'click', mult: 3, time: 60, chance: 21, icon: '👆' },
+  { id: 'b7', name: '×6 Клик', stat: 'click', mult: 6, time: 80, chance: 2, icon: '🔥' }
+];
+
+const PET_LOOT = [
+  { id: 'cat5', type: 'cat', name: 'Кот', time: 300, timeText: '5 мин', icon: '🐱', stat: 'click', mult: 3, chance: 30 },
+  { id: 'cat10', type: 'cat', name: 'Кот', time: 600, timeText: '10 мин', icon: '🐱', stat: 'click', mult: 3, chance: 15 },
+  { id: 'dog5', type: 'dog', name: 'Собака', time: 300, timeText: '5 мин', icon: '🐶', stat: 'energy', mult: 3, chance: 30 },
+  { id: 'dog10', type: 'dog', name: 'Собака', time: 600, timeText: '10 мин', icon: '🐶', stat: 'energy', mult: 3, chance: 15 },
+  { id: 'snake5', type: 'snake', name: 'Змея', time: 300, timeText: '5 мин', icon: '🐍', stat: 'both', mult: 3, chance: 8 },
+  { id: 'cat_forever', type: 'cat', name: 'Кот (Навсегда)', time: Infinity, timeText: '', icon: '🐱', stat: 'click', mult: 3, chance: 0.75 },
+  { id: 'dog_forever', type: 'dog', name: 'Собака (Навсегда)', time: Infinity, timeText: '', icon: '🐶', stat: 'energy', mult: 3, chance: 0.75 },
+  { id: 'snake_forever', type: 'snake', name: 'Змея (Навсегда)', time: Infinity, timeText: '', icon: '🐍', stat: 'both', mult: 3, chance: 0.5 }
+];
+
+const defaultState = () => ({
+  coins: 0, energy: 20,
+  lvlClick: 1, lvlPassive: 1, lvlEnergy: 1,
+  ownedSkins: [0], equippedSkin: 0, usedCodes: [],
+  soundOn: true,
+  seeds: 0, flytrapUnlocked: false,
+  nestBoxes: [], overflowBoxes: 0,
+  buffs: [], pets: []
+});
+
+let state = load();
+let serverTimeOffset = 0;
+
+function load() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const merged = Object.assign(defaultState(), parsed);
+      if (merged.soundOn === false) soundEnabled = false;
+      return merged;
+    }
+  } catch (e) {}
+  return defaultState();
+}
+
+function save() {
+  try {
+    state.soundOn = soundEnabled;
+    localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+  } catch (e) {}
+}
+
+const $ = id => document.getElementById(id);
+const now = () => Date.now() + serverTimeOffset;
+
+const clickValue = () => CLICK_VALUES[state.lvlClick - 1];
+const passiveValue = () => PASSIVE_VALUES[state.lvlPassive - 1];
+const energyMax = () => ENERGY_MAX[state.lvlEnergy - 1];
+const energyRate = () => ENERGY_RATE[state.lvlEnergy - 1];
+
+function getMultipliers() {
+  let clickMult = 1, energyMult = 1, passiveMult = 1;
+  const t = now();
+  state.buffs = state.buffs.filter(b => b.endTime > t);
+  state.buffs.forEach(b => { if (b.stat === 'click') clickMult *= b.mult; if (b.stat === 'energy') energyMult *= b.mult; if (b.stat === 'passive') passiveMult *= b.mult; });
+  state.pets = state.pets.filter(p => p.endTime > t);
+  state.pets.forEach(p => { if (p.stat === 'click' || p.stat === 'both') clickMult *= p.mult; if (p.stat === 'energy' || p.stat === 'both') energyMult *= p.mult; });
+  return { clickMult, energyMult, passiveMult };
+}
+
+function render() {
+  const mult = getMultipliers();
+  $('coins').textContent = formatNumber(state.coins);
+  $('seeds').textContent = state.seeds;
+  const maxE = energyMax() * mult.energyMult;
+  const pct = Math.max(0, Math.min(100, (state.energy / maxE) * 100));
+  $('energyFill').style.width = pct + '%';
+  $('energyText').textContent = `${formatNumber(state.energy)} / ${formatNumber(maxE)}`;
+  const baseClick = clickValue(), realClick = baseClick * mult.clickMult;
+  $('clickValue').textContent = formatNumber(realClick) + (mult.clickMult > 1 ? ` (×${mult.clickMult})` : '');
+  const basePass = passiveValue(), realPass = basePass * mult.passiveMult;
+  $('passiveValue').textContent = formatNumber(realPass) + (mult.passiveMult > 1 ? ` (×${mult.passiveMult})` : '');
+  
+  renderBuffs(mult);
+  renderNest();
+  renderPets();
+  renderFlytrap(); 
+  
+  const container = $('bunnyContainer');
+  if (container.dataset.skin !== String(state.equippedSkin)) {
+    container.innerHTML = getSkinSVG(state.equippedSkin);
+    container.dataset.skin = state.equippedSkin;
+    container.querySelector('svg').addEventListener('click', handleBunnyClick);
+    if (state.equippedSkin === 4) container.querySelector('svg').classList.add('friday-glow');
+  }
+  renderUpgrades();
+  renderSkins();
+  if (state.overflowBoxes > 0) { $('overflowBoxes').style.display = 'flex'; $('boxCount').textContent = state.overflowBoxes; } else { $('overflowBoxes').style.display = 'none'; }
+  save();
+}
+
+function renderBuffs(mult) {
+  const container = $('buffsContainer'); container.innerHTML = ''; const t = now();
+  const active = [...state.buffs];
+  state.pets.forEach(p => { active.push({ id: p.id, stat: p.stat, mult: p.mult, endTime: p.endTime, isPet: true, icon: p.icon }); });
+  active.forEach(b => {
+    if (b.endTime === Infinity) return;
+    const timeLeft = Math.max(0, Math.ceil((b.endTime - t) / 1000));
+    if (timeLeft <= 0) return;
+    const el = document.createElement('div'); el.className = 'buff-tag';
+    el.innerHTML = `${b.icon || '🔥'} ×${b.mult} (${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2,'0')})`;
+    container.appendChild(el);
+  });
+}
+
+function renderPets() {
+  const container = $('petsAround'); container.innerHTML = '';
+  state.pets.forEach((p, i) => {
+    if (p.endTime === Infinity) {
+      const el = document.createElement('div'); el.className = 'pet-icon';
+      el.style.left = (i * 40 - 20) + 'px'; el.style.top = '-20px'; el.textContent = p.icon;
+      container.appendChild(el);
+    }
+  });
+}
+
+function renderNest() {
+  const area = $('nestArea'); area.innerHTML = ''; const t = now();
+  for (let i = 0; i < 8; i++) { // 8 слотов
+    const slot = document.createElement('div'); slot.className = 'nest-slot';
+    const box = state.nestBoxes[i];
+    if (box) {
+      const timeLeft = Math.max(0, Math.ceil((box.finishTime - t) / 1000));
+      slot.innerHTML = BOX_SVGS[box.type] || '📦'; 
+      if (timeLeft > 0) { slot.classList.add('timer'); slot.dataset.time = Math.floor(timeLeft/60) + ':' + (timeLeft%60).toString().padStart(2,'0'); slot.onclick = () => alert('Коробка еще открывается!'); }
+      else { slot.style.animation = 'floatPet 1s infinite'; slot.onclick = () => openBox(i); }
+    } else { slot.classList.add('empty'); slot.textContent = '—'; }
+    area.appendChild(slot);
+  }
+}
+
+function renderFlytrap() {
+  const svg = $('flytrapSvg'), info = $('flytrapInfo');
+  
+  // Используем SVG семечко для текста
+  const seedText = `<span style="display:inline-flex; align-items:center; justify-content:center; width: 16px; height: 16px;">${SVG_SEED}</span>`;
+
+  if (state.seeds < 10 && !state.flytrapUnlocked) { 
+    svg.classList.add('locked'); 
+    info.innerHTML = `Открыть за 10 ${seedText} (${state.seeds}/10)`; 
+    info.style.color = '#c0392b'; 
+  } else if (state.flytrapUnlocked && state.seeds < 10) {
+    svg.classList.add('locked');
+    info.innerHTML = `Нужно 10 ${seedText} для игры (${state.seeds}/10)`; 
+    info.style.color = '#c0392b';
+  } else {
+    svg.classList.remove('locked'); 
+    info.innerHTML = `Крутить за 10 ${seedText} (1 Коробка)`; 
+    info.style.color = '#2e5d4b'; 
+  }
+}
+
+function renderUpgrades() {
+  $('lvl-click').textContent = `Ур. ${state.lvlClick} / ${MAX_LEVEL}`; $('desc-click').textContent = formatNumber(clickValue());
+  const bClick = $('buy-click');
+  if (state.lvlClick >= MAX_LEVEL) { bClick.textContent = 'МАКС'; bClick.disabled = true; }
+  else { const cost = COST_CLICK[state.lvlClick]; bClick.textContent = `Улучшить (${formatNumber(cost)} 🪙)`; bClick.disabled = state.coins < cost; }
+  $('lvl-passive').textContent = `Ур. ${state.lvlPassive} / ${MAX_LEVEL}`; $('desc-passive').textContent = formatNumber(passiveValue());
+  const bPass = $('buy-passive');
+  if (state.lvlPassive >= MAX_LEVEL) { bPass.textContent = 'МАКС'; bPass.disabled = true; }
+  else { const cost = COST_PASSIVE[state.lvlPassive]; bPass.textContent = `Улучшить (${formatNumber(cost)} 🪙)`; bPass.disabled = state.coins < cost; }
+  $('lvl-energy').textContent = `Ур. ${state.lvlEnergy} / ${MAX_LEVEL}`; $('desc-energy').textContent = formatNumber(energyMax()); $('desc-energy-rate').textContent = formatNumber(energyRate());
+  const bEn = $('buy-energy');
+  if (state.lvlEnergy >= MAX_LEVEL) { bEn.textContent = 'МАКС'; bEn.disabled = true; }
+  else { const cost = COST_ENERGY[state.lvlEnergy]; bEn.textContent = `Улучшить (${formatNumber(cost)} 🪙)`; bEn.disabled = state.coins < cost; }
+}
+
+function renderSkins() {
+  SKINS.forEach(s => {
+    const thumb = $('thumb-' + s.id);
+    if (thumb && thumb.dataset.done !== '1') { thumb.innerHTML = getSkinSVG(s.id); thumb.dataset.done = '1'; }
+    const btn = $('skin-btn-' + s.id); if (!btn) return;
+    const owned = state.ownedSkins.includes(s.id), equipped = state.equippedSkin === s.id;
+    if (equipped) { btn.textContent = 'Надет'; btn.className = 'buy equip equipped'; btn.disabled = false; }
+    else if (owned) { btn.textContent = 'Надеть'; btn.className = 'buy equip'; btn.disabled = false; }
+    else { btn.textContent = `Купить (${formatNumber(s.price)} 🪙)`; btn.className = 'buy'; btn.disabled = state.coins < s.price; }
+  });
+}
+
+function handleBunnyClick(e) {
+  const svgEl = e.currentTarget, mult = getMultipliers(), cost = energyRate();
+  if (state.energy < cost) { svgEl.animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(0)'}], {duration: 150}); return; }
+  const gain = clickValue() * mult.clickMult;
+  state.energy -= cost; state.coins += gain;
+  spawnFloat(e.clientX, e.clientY, '+' + formatNumber(gain));
+  playJumpAnimation(svgEl); playPopSound(1 + Math.random() * 0.15);
+  if (state.equippedSkin === 3) setTimeout(playSwordSound, 60);
+  if (state.equippedSkin === 4) { setTimeout(playKnifeSound, 60); spawnBloodEffects(e.clientX, e.clientY); }
+  render();
+}
+
+function buySeed() { if (state.coins < 10000000) return; state.coins -= 10000000; state.seeds++; playBuySound(); render(); }
+
+function handleFlytrapClick() {
+  if (!state.flytrapUnlocked) {
+    if (state.seeds >= 10) { state.seeds -= 10; state.flytrapUnlocked = true; playBuySound(); render(); }
+    else { $('flytrapSvg').animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(0)'}], {duration: 150}); }
+    return;
+  }
+  if (state.seeds >= 10) {
+    state.seeds -= 10;
+    spawnBoxFromFlytrap();
+  } else {
+    $('flytrapSvg').animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'translateX(0)'}], {duration: 150});
+  }
+}
+
+function spawnBoxFromFlytrap() {
+  const r = Math.random() * 100;
+  let type = 'money'; 
+  if (r > 94) type = 'pet';       // 6%
+  else if (r > 72) type = 'buff'; // 22%
+  
+  const boxData = BOX_TYPES[type];
+  const box = { id: Date.now() + Math.random(), type: type, finishTime: now() + boxData.time * 1000 };
+  if (state.nestBoxes.length < 8) { state.nestBoxes.push(box); spawnFlyingBox(box.type); }
+  else { state.overflowBoxes++; }
+  playPopSound(); render();
+}
+
+function spawnFlyingBox(type) {
+  const el = document.createElement('div'); el.className = 'flying-box'; 
+  el.innerHTML = BOX_SVGS[type] || '📦'; 
+  const rect = $('flytrapSvg').getBoundingClientRect();
+  el.style.left = (rect.left + rect.width/2 - 20) + 'px'; el.style.top = (rect.top) + 'px';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 800);
+}
+
+function openBox(index) {
+  const box = state.nestBoxes[index]; if (!box || now() < box.finishTime) return;
+  state.nestBoxes.splice(index, 1);
+  if (box.type === 'money') {
+    const roll = Math.random() * 100; let reward = 100000;
+    if (roll > 95.9) reward = 350000000; 
+    else if (roll > 79.8) reward = 250000000; 
+    else if (roll > 49.8) reward = 100000000; 
+    else if (roll > 27.8) reward = 10000000; 
+    else if (roll > 11.8) reward = 1000000;
+    
+    state.coins += reward;
+    showModal('Денежная коробка', SVG_BOX_MONEY, 'Вы выиграли', formatNumber(reward) + ' монет!'); playBuySound();
+  } else if (box.type === 'buff') {
+    const roll = Math.random() * 100; let accum = 0; let drop = BUFF_LOOT[0];
+    for (let b of BUFF_LOOT) { accum += b.chance; if (roll <= accum) { drop = b; break; } }
+    state.buffs.push({ id: Date.now(), stat: drop.stat, mult: drop.mult, endTime: now() + drop.time * 1000, icon: drop.icon });
+    showModal('Коробка бустов', SVG_BOX_BUFF, 'Вы получили буст', `${drop.name} на ${Math.floor(drop.time/60)} мин!`); playBuySound();
+  } else if (box.type === 'pet') {
+    const roll = Math.random() * 100; let accum = 0; let drop = PET_LOOT[0];
+    for (let p of PET_LOOT) { accum += p.chance; if (roll <= accum) { drop = p; break; } }
+    state.pets.push({ id: Date.now(), type: drop.type, stat: drop.stat, mult: drop.mult, endTime: drop.time === Infinity ? Infinity : now() + drop.time * 1000, icon: drop.icon });
+    if (drop.time === Infinity) { showModal('ДЖЕКПОТ!', SVG_BOX_PET, 'Питомец навсегда!', `${drop.name} теперь всегда с вами!`); }
+    else { showModal('Коробка питомцев', SVG_BOX_PET, 'Вы получили питомца', `${drop.name} на ${drop.timeText}!`); }
+    playBuySound();
+  }
+  if (state.overflowBoxes > 0) { state.overflowBoxes--; state.nestBoxes.push({ id: Date.now(), type: 'money', finishTime: now() + 60000 }); }
+  render();
+}
+
+setInterval(() => {
+  const mult = getMultipliers();
+  state.coins += passiveValue() * mult.passiveMult;
+  const maxE = energyMax() * mult.energyMult;
+  if (state.energy < maxE) state.energy = Math.min(maxE, state.energy + energyRate() * mult.energyMult);
+  render();
+}, 1000);
+
+function showModal(title, svgIcon, desc1, desc2) { 
+  $('modalTitle').textContent = title; 
+  $('modalIcon').innerHTML = svgIcon; 
+  $('modalDesc').innerHTML = `${desc1}<br><b style="font-size:20px; color:#ff9800;">${desc2}</b>`; 
+  $('modalOverlay').classList.add('active'); 
+}
+function closeModal() { $('modalOverlay').classList.remove('active'); }
+
+function formatNumber(n) { if (n < 1000000) return Math.floor(n).toLocaleString('ru-RU'); if (n < 1000000000) return (Math.round(n/100000)/10).toFixed(1).replace('.', ',') + 'M'; return (Math.round(n/100000000)/10).toFixed(1).replace('.', ',') + 'B'; }
+function spawnFloat(x, y, text) { const el = document.createElement('div'); el.className = 'float-coin'; el.textContent = text; const wrapRect = $('bunnyWrap').getBoundingClientRect(); el.style.left = (x - wrapRect.left) + 'px'; el.style.top = (y - wrapRect.top) + 'px'; $('bunnyWrap').appendChild(el); setTimeout(() => el.remove(), 900); }
+function spawnBloodEffects(x, y) { const wrapRect = $('bunnyWrap').getBoundingClientRect(); const left = (x - wrapRect.left), top = (y - wrapRect.top); for (let i = 0; i < 3; i++) { const spark = document.createElement('div'); spark.className = 'blood-spark'; spark.style.left = left + 'px'; spark.style.top = top + 'px'; const dx = (Math.random() - 0.5) * 20, dy = (Math.random() - 0.5) * 20; spark.style.transform = `translate(-50%, -50%) translate(${dx}px, ${dy}px)`; $('bunnyWrap').appendChild(spark); setTimeout(() => spark.remove(), 500); } }
+function playJumpAnimation(svgEl) { svgEl.classList.remove('jump'); void svgEl.getBoundingClientRect(); svgEl.classList.add('jump'); setTimeout(() => svgEl.classList.remove('jump'), 400); }
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active'); $('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+$('soundToggle').addEventListener('click', () => {
+  soundEnabled = !soundEnabled; $('soundToggle').textContent = soundEnabled ? '🔊' : '🔇';
+  if (soundEnabled) playPopSound(); save();
+});
+
+$('buy-click').addEventListener('click', () => { if (state.lvlClick >= MAX_LEVEL || state.coins < COST_CLICK[state.lvlClick]) return; state.coins -= COST_CLICK[state.lvlClick]; state.lvlClick++; playBuySound(); render(); });
+$('buy-passive').addEventListener('click', () => { if (state.lvlPassive >= MAX_LEVEL || state.coins < COST_PASSIVE[state.lvlPassive]) return; state.coins -= COST_PASSIVE[state.lvlPassive]; state.lvlPassive++; playBuySound(); render(); });
+$('buy-energy').addEventListener('click', () => { if (state.lvlEnergy >= MAX_LEVEL || state.coins < COST_ENERGY[state.lvlEnergy]) return; state.coins -= COST_ENERGY[state.lvlEnergy]; state.lvlEnergy++; playBuySound(); render(); });
+
+SKINS.forEach(s => {
+  const btn = $('skin-btn-' + s.id);
+  if (btn) btn.addEventListener('click', () => {
+    const owned = state.ownedSkins.includes(s.id);
+    if (!owned) {
+      if (state.coins < s.price) return;
+      state.coins -= s.price; state.ownedSkins.push(s.id); state.equippedSkin = s.id;
+      if (s.bonus > 0) { state.coins += s.bonus; spawnFloat(window.innerWidth/2, window.innerHeight/2, 'Бонус: +' + formatNumber(s.bonus)); setTimeout(playBuySound, 150); } else { playBuySound(); }
+    } else { state.equippedSkin = s.id; playPopSound(1.2); }
+    $('bunnyContainer').dataset.skin = ''; render();
+  });
+});
+
+$('codeBtn').addEventListener('click', () => {
+  const code = $('codeInput').value.trim(); const msg = $('codeMsg');
+  if (!code) return;
+  if (state.usedCodes.includes(code)) { msg.textContent = 'Уже использован'; msg.className = 'msg err'; return; }
+  if (CODES[code]) { state.coins += CODES[code]; state.usedCodes.push(code); msg.textContent = `Принято! +${formatNumber(CODES[code])}`; msg.className = 'msg ok'; $('codeInput').value = ''; playBuySound(); render(); }
+  else { msg.textContent = 'Неверный код'; msg.className = 'msg err'; }
+});
+
+render();
+</script>
+</body>
+                                 </html>
